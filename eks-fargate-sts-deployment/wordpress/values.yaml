@@ -1,0 +1,85 @@
+replicaCount: 1
+
+image:
+  repository: wordpress
+  pullPolicy: IfNotPresent
+  tag: latest
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: NodePort
+  port: 80
+
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/subnets: subnet-002150980f221bb73,subnet-012992f4b2461d68c
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:039033235676:certificate/dd769443-6cc9-47ff-bbc2-2b0589af2bd5
+  hosts:
+    - host: vishalweb.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: wordpress-service
+              port:
+                number: 80
+
+resources: {}
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+volumes:
+  - name: wordpress-persistent-storage
+    persistentVolumeClaim:
+      claimName: wordpress-pvc
+    efs:
+      volumeHandle: "fs-0e44751b6665af162"
+
+volumeMounts:
+  - name: wordpress-persistent-storage
+    mountPath: /var/www/html
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+

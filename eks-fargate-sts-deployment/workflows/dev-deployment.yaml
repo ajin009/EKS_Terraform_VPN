@@ -1,0 +1,74 @@
+name: Dev Deployment Workflow
+
+on:
+  push:
+    branches:
+      - devk
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Pritunl VPN
+        run: |
+          sudo tee /etc/apt/sources.list.d/pritunl.list << EOF
+          deb https://repo.pritunl.com/stable/apt jammy main
+          EOF
+
+          sudo apt --assume-yes install gnupg
+          gpg --keyserver hkp://keyserver.ubuntu.com --recv-keys 7568D9BB55FF9E5287D586017AE645C0CF8E292A
+          gpg --armor --export 7568D9BB55FF9E5287D586017AE645C0CF8E292A | sudo tee /etc/apt/trusted.gpg.d/pritunl.asc
+          sudo apt update
+          sudo apt install pritunl-client-electron
+
+      - name: current directory and components
+        run: |
+          echo "Current directory: $(pwd)"
+          ls -la
+
+      - name: Connect VPN
+        run: |
+          echo "Current directory: $(pwd)"
+          ls -la
+          pritunl-client add ./visal.tar
+          pritunl-client start "$(pritunl-client list | awk 'NR>2 {print $2}' | tr -d '[:space:]')" --password ${{ secrets.PRITUNL_PIN }} 
+
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Install and configure kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          aws eks update-kubeconfig --region us-east-1 --name dev-eks-private
+
+      - name: Restart coredns
+        run: |
+          kubectl rollout restart -n kube-system deployment.apps/coredns
+
+      - name: Get all pods after restart
+        run: |
+          kubectl get nodes -A
+
+      - name: Install Helm
+        run: |
+           curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+           chmod 700 get_helm.sh
+           ./get_helm.sh
+           
+      - name: Install MySQL
+        run: |
+            helm uninstall mysql || true && helm install mysql ./mysql
+
+      - name: Install WordPress
+        run: |
+            helm uninstall wordpress || true && helm install wordpress ./wordpress

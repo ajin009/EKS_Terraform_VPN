@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cafe-ingress
+  annotations:
+    #kubernetes.io/ingress.class: albii
+    kubernetes.io/spec.ingressClassName: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/subnets: subnet-05444aa875cf8d56d,subnet-09111fa5be4549bc7
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:039033235676:certificate/dd769443-6cc9-47ff-bbc2-2b0589af2bd5
+spec:
+  ingressClassName: alb
+  rules:
+    - host: vishalweb.cloud
+      http: 
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wordpress-service
+                port:
+                  number: 80
+

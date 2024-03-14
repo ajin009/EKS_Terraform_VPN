@@ -1,0 +1,1 @@
+# Eks-Fargate-sts-deployment
